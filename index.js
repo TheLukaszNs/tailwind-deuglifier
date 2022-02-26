@@ -1,28 +1,25 @@
 const path = require("path");
-const { generateMap, saveProcessed } = require("./lib");
+const { exit } = require("process");
+const fs = require("fs/promises");
+const TailwindDeuglifier = require("./lib/TailwindDeuglifier");
 
-let htmlFile, cssFile, tailwindPath;
-
-if (process.argv.length == 4) {
-  tailwindPath = process.argv[2];
-  htmlFile = cssFile = process.argv[3];
-} else if (process.argv.length == 5) {
-  tailwindPath = process.argv[2];
-  htmlFile = process.argv[3];
-  cssFile = process.argv[4];
-} else {
-  console.log("Usage: node index.js <tailwind.css> <in.html> [<in.css>]");
-  process.exit(1);
-}
-
-console.log("Generating out.html...");
-
-generateMap(path.join(__dirname, tailwindPath), path.join(__dirname, cssFile))
-  .then(async (map) => saveProcessed(path.join(__dirname, htmlFile), map))
-  .then(() => {
-    console.log("Generated out.html...");
-  })
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
+const main = async () => {
+  const deuglifier = new TailwindDeuglifier({
+    tailwindCSSPath: path.resolve(__dirname, "./tailwind.css"),
+    htmlPath: path.resolve(__dirname, "./index.html"),
   });
+
+  await deuglifier.init();
+  await deuglifier.generateMap();
+  await deuglifier.createStylesheet();
+  const html = await deuglifier.createHtml();
+
+  await fs.writeFile("out.html", html);
+};
+
+try {
+  main();
+} catch (error) {
+  console.error(error);
+  exit(1);
+}
